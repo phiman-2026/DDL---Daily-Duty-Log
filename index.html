@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ระบบรายงานการปฏิบัติเวรประจำวัน</title>
+<link rel="icon" href="https://raw.githubusercontent.com/phiman-2026/picture/main/logo%20phiman.png">
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root{--blue:#0066CC;--ink:#1D1D1F;--mut:#7A7A7A;--bg:#F5F5F7;--card:#fff;--line:#E0E0E0;--red:#FF3B30}
+@media(prefers-color-scheme:dark){:root{--ink:#F5F5F7;--mut:#A1A1A6;--bg:#000;--card:#1C1C1E;--line:#38383A}}
+*{box-sizing:border-box;margin:0}
+body{font-family:Prompt,system-ui,sans-serif;background:var(--bg);color:var(--ink);padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+header{background:var(--card);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:5}
+header img.logo{width:36px;height:36px;object-fit:contain}header b{flex:1;font-size:.95rem;line-height:1.2}
+header img.av{width:30px;height:30px;border-radius:50%}
+nav{display:flex;gap:6px;padding:10px 12px;overflow-x:auto;max-width:1100px;margin:auto}
+nav button{white-space:nowrap}
+main{max-width:1100px;margin:auto;padding:0 12px 40px}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;border-radius:99px;font:inherit;font-size:.85rem;cursor:pointer}
+.btn.on,.btn.p{background:var(--blue);border-color:var(--blue);color:#fff}.btn.d{color:var(--red)}
+.btn:disabled{opacity:.5}
+.card{background:var(--card);border-radius:18px;padding:18px;box-shadow:0 1px 2px #0001;margin-bottom:14px}
+h2{font-size:1.05rem;margin-bottom:12px}
+label{display:block;font-size:.82rem;font-weight:500;margin:12px 0 4px}label i{color:var(--red);font-style:normal}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--card);color:var(--ink)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:560px){.row{grid-template-columns:1fr}}
+.hint{font-size:.75rem;color:var(--mut);margin-top:3px}
+.imgs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.drop{border:2px dashed var(--line);border-radius:12px;min-height:120px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:.8rem;color:var(--mut);cursor:pointer;overflow:hidden}
+.drop img{width:100%;display:block}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:.82rem}
+th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{white-space:nowrap;color:var(--mut);font-weight:500}
+td img{width:64px;height:64px;object-fit:cover;border-radius:8px}
+.login{max-width:360px;margin:12vh auto;text-align:center}.login img{width:72px;margin-bottom:10px}
+#gbtn{display:flex;justify-content:center;margin-top:18px}
+.empty{text-align:center;color:var(--mut);padding:30px}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#1D1D1F;color:#fff;padding:10px 18px;border-radius:99px;font-size:.85rem;display:none;z-index:9;max-width:90vw}
+#toast.err{background:var(--red)}
+</style>
+</head>
+<body>
+<header>
+  <img class="logo" src="https://raw.githubusercontent.com/phiman-2026/picture/main/logo%20phiman.png" alt="">
+  <b>รายงานการปฏิบัติเวรประจำวัน<br><small style="font-weight:300;color:var(--mut)">โรงเรียนพิมานพิทยาสรรค์</small></b>
+  <span id="who" style="display:none;align-items:center;gap:8px"><img class="av" id="av" alt=""><span id="nm" style="font-size:.8rem"></span></span>
+</header>
+<div id="app"></div>
+<div id="toast"></div>
+
+<script>
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwBzOaleAcKiNsz8Q3PmWSpgybOSfbZtP_sE73sLiPqVNvHYO8no2owdir9FZTkSBXf/exec";
+const CLIENT_ID = "857339235853-gbd7aip7ktrl2ot025q6judnvvdmfoa9.apps.googleusercontent.com";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const DAYS = ["วันอาทิตย์","วันจันทร์","วันอังคาร","วันพุธ","วันพฤหัสบดี","วันศุกร์","วันเสาร์"];
+const MON = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+let S = { user:null, token:null, duties:[], teachers:[], rows:[], view:"today", edit:null, img:[null,null] };
+
+function toast(m, err){ const t=$("#toast"); t.textContent=m; t.className=err?"err":""; t.style.display="block"; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display="none",3200); }
+async function api(p){
+  let r; try { r = await fetch(GAS_URL,{method:"POST",body:JSON.stringify(p)}); } catch(e){ throw new Error("เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ"); }
+  const d = await r.json();
+  if (d.status==="error"){ if(/เซสชันหมดอายุ|เข้าสู่ระบบ/.test(d.message)) logout(true); throw new Error(d.message); }
+  return d;
+}
+function dstr(iso){ const [y,m,d]=iso.split("-").map(Number); return DAYS[new Date(y,m-1,d).getDay()]+"ที่ "+d+" "+MON[m-1]+" "+(y+543); }
+function today(){ const n=new Date(); return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0")+"-"+String(n.getDate()).padStart(2,"0"); }
+function nowHM(){ const n=new Date(); return String(n.getHours()).padStart(2,"0")+":"+String(n.getMinutes()).padStart(2,"0"); }
+function thumb(u){ const m=String(u||"").match(/[-\w]{25,}/); return m ? "https://drive.google.com/thumbnail?id="+m[0]+"&sz=w400" : ""; }
+
+/* ---------- AUTH ---------- */
+function showLogin(){
+  $("#who").style.display="none";
+  $("#app").innerHTML=`<div class="card login"><img src="https://raw.githubusercontent.com/phiman-2026/picture/main/logo%20phiman.png" alt="">
+   <h2>เข้าสู่ระบบ</h2><p class="hint">เฉพาะบัญชี Google ของโรงเรียน @phiman.ac.th เท่านั้น</p><div id="gbtn"></div></div>`;
+  const go=()=>{ google.accounts.id.initialize({client_id:CLIENT_ID,callback:onCred});
+    google.accounts.id.renderButton($("#gbtn"),{theme:"outline",size:"large",shape:"pill",width:260}); };
+  window.google&&google.accounts ? go() : setTimeout(showLogin,300);
+}
+async function onCred(res){
+  try{
+    const d = await api({action:"googleLogin",idToken:res.credential});
+    S.token=d.token; S.user=d.user;
+    localStorage.setItem("duty_session",JSON.stringify({token:d.token,user:d.user,exp:Date.now()+d.expiresInSec*1000}));
+    await boot();
+  }catch(e){ toast(e.message,true); }
+}
+async function boot(){
+  try{
+    const d = await api({action:"init",token:S.token});
+    S.duties=d.duties; S.teachers=d.teachers; S.user=d.user;
+  }catch(e){ return; }
+  $("#who").style.display="flex"; $("#av").src=S.user.picture||""; $("#nm").textContent=S.user.name;
+  go("today");
+}
+function logout(silent){
+  localStorage.removeItem("duty_session"); S.token=null; S.user=null;
+  if(window.google&&google.accounts) google.accounts.id.disableAutoSelect();
+  showLogin(); if(!silent) toast("ออกจากระบบแล้ว");
+}
+
+/* ---------- SHELL ---------- */
+function go(v, edit){
+  S.view=v; S.edit=edit||null; S.img=[null,null];
+  const tabs=[["today","บันทึกข้อมูลวันนี้"],["back","บันทึกข้อมูลย้อนหลัง"],["list","ดูข้อมูล"],["manage","การจัดการข้อมูล"]];
+  const active = v==="edit" ? "manage" : v;
+  $("#app").innerHTML=`<nav>${tabs.map(t=>`<button class="btn ${t[0]===active?"on":""}" onclick="go('${t[0]}')">${t[1]}</button>`).join("")}
+    <button class="btn d" onclick="logout()">ออกจากระบบ</button></nav><main id="main"></main>`;
+  if(v==="list"||v==="manage") loadList(v==="manage"); else renderForm();
+}
+
+/* ---------- FORM ---------- */
+function teacherInput(id,label,req,val){
+  return `<label>${label}${req?" <i>*</i>":""}</label><input id="${id}" list="tl" value="${esc(val||"")}" placeholder="พิมพ์ชื่อเพื่อค้นหา" autocomplete="off">`;
+}
+function renderForm(){
+  const e=S.edit, mode=S.view; // today | back | edit
+  const title = mode==="today"?"บันทึกข้อมูลวันนี้":mode==="back"?"บันทึกข้อมูลย้อนหลัง":"แก้ไขรายการ";
+  const dateBlock = mode==="today" ? "" : `<label>วันและเวลาที่ปฏิบัติเวร <i>*</i></label>
+    <div class="row"><input type="date" id="date" max="${today()}" value="${e?e.date:""}" onchange="wd()"><input type="time" id="time" value="${e?e.time:"07:00"}"></div>
+    <div class="hint" id="wd">${e?dstr(e.date):"เลือกวันที่เพื่อแสดงวัน"}</div>`;
+  $("#main").innerHTML=`<div class="card"><h2>${title}</h2>
+  ${mode==="today"?`<p class="hint">ระบบบันทึกวัน-เวลาปัจจุบันให้อัตโนมัติ (${dstr(today())} ${nowHM()} น.)</p>`:""}
+  ${dateBlock}
+  <label>ปฏิบัติหน้าที่ (เลือก 1 รายการ) <i>*</i></label>
+  <select id="duty"><option value="">-- เลือกหน้าที่ --</option>${S.duties.map(d=>`<option ${e&&e.duty===d?"selected":""}>${esc(d)}</option>`).join("")}</select>
+  <datalist id="tl">${S.teachers.map(t=>`<option value="${esc(t)}">`).join("")}</datalist>
+  <label>ครูผู้ปฏิบัติหน้าที่</label><input value="${esc(S.user.name)}" disabled>
+  ${teacherInput("t2","ครูผู้ปฏิบัติหน้าที่ร่วม คนที่ 2",true,e&&e.t2)}
+  ${teacherInput("t3","ครูผู้ปฏิบัติหน้าที่ร่วม คนที่ 3 (ถ้ามี)",false,e&&e.t3)}
+  <label>ผลการปฏิบัติงาน <i>*</i></label><textarea id="result" rows="4" maxlength="2000">${esc(e?e.result:"")}</textarea>
+  <label>แนบรูปภาพประกอบ ${e?"(เลือกใหม่เฉพาะรูปที่ต้องการเปลี่ยน)":'<i>*</i> ต้องแนบทั้ง 2 รูป'}</label>
+  <div class="imgs">${[0,1].map(i=>`<label class="drop" id="dz${i}" style="margin:0">
+    ${e&&thumb(e["img"+(i+1)])?`<img src="${thumb(e["img"+(i+1)])}">`:`รูปที่ ${i+1}<br>แตะเพื่อเลือก/ถ่ายภาพ`}
+    <input type="file" accept="image/*" hidden onchange="pick(${i},this)"></label>`).join("")}</div>
+  <div style="margin-top:18px;display:flex;gap:8px"><button class="btn p" id="sv" onclick="submitForm()">บันทึกข้อมูล</button>
+  ${e?`<button class="btn" onclick="go('manage')">ยกเลิก</button>`:""}</div></div>`;
+}
+function wd(){ const v=$("#date").value; $("#wd").textContent = v?dstr(v):"เลือกวันที่เพื่อแสดงวัน"; }
+function pick(i,inp){
+  const f=inp.files[0]; if(!f) return;
+  const img=new Image(), url=URL.createObjectURL(f);
+  img.onload=()=>{ // ย่อรูปเป็น JPEG ไม่เกิน 1600px เพื่ออัปโหลดเร็วและประหยัดพื้นที่ Drive
+    const k=Math.min(1,1600/Math.max(img.width,img.height)), c=document.createElement("canvas");
+    c.width=img.width*k; c.height=img.height*k; c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+    S.img[i]=c.toDataURL("image/jpeg",.8); URL.revokeObjectURL(url);
+    $("#dz"+i).innerHTML=`<img src="${S.img[i]}"><input type="file" accept="image/*" hidden onchange="pick(${i},this)">`;
+  };
+  img.onerror=()=>toast("เปิดไฟล์รูปไม่สำเร็จ",true); img.src=url;
+}
+async function submitForm(){
+  const e=S.edit, mode=S.view;
+  const p={token:S.token,action:e?"update":"create",mode:mode==="today"?"today":"back",id:e&&e.id,
+    date:mode==="today"?"":$("#date").value,time:mode==="today"?"":$("#time").value,
+    duty:$("#duty").value,t2:$("#t2").value.trim(),t3:$("#t3").value.trim(),result:$("#result").value.trim(),
+    img1:S.img[0],img2:S.img[1]};
+  if(mode!=="today"&&(!p.date||!p.time)) return toast("กรุณาเลือกวันและเวลา",true);
+  if(!p.duty) return toast("กรุณาเลือกหน้าที่",true);
+  if(!p.t2) return toast("กรุณาระบุครูคนที่ 2",true);
+  if(S.teachers.length&&(!S.teachers.includes(p.t2)||(p.t3&&!S.teachers.includes(p.t3)))) return toast("กรุณาเลือกชื่อครูจากรายชื่อที่ค้นหา",true);
+  if(!p.result) return toast("กรุณากรอกผลการปฏิบัติงาน",true);
+  if(!e&&!(p.img1&&p.img2)) return toast("ต้องแนบรูปภาพทั้ง 2 รูป",true);
+  const b=$("#sv"); b.disabled=true; b.textContent="กำลังบันทึก...";
+  try{ await api(p); toast("บันทึกข้อมูลเรียบร้อย"); go(e?"manage":"list"); }
+  catch(err){ toast(err.message,true); b.disabled=false; b.textContent="บันทึกข้อมูล"; }
+}
+
+/* ---------- LIST / MANAGE ---------- */
+async function loadList(manage){
+  $("#main").innerHTML=`<div class="empty">กำลังโหลดข้อมูล...</div>`;
+  try{ S.rows=(await api({action:"list",token:S.token})).rows; }catch(e){ return toast(e.message,true); }
+  S.rows.sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
+  S.manage=manage; drawTable();
+}
+function drawTable(){
+  const m=S.manage;
+  $("#main").innerHTML=`<div class="card"><h2>${m?"การจัดการข้อมูล (แก้ไข/ลบได้เฉพาะรายการของตนเอง)":"ดูข้อมูล"}</h2>
+  <div class="row"><input id="q" placeholder="ค้นหาชื่อครู / หน้าที่ / ผลการปฏิบัติ" oninput="rows()"><input type="date" id="fd" onchange="rows()"></div></div>
+  <div class="card tw" id="tb"></div>`;
+  rows();
+}
+function rows(){
+  const q=($("#q").value||"").toLowerCase(), fd=$("#fd").value;
+  let r=S.rows.filter(x=>(!fd||x.date===fd)&&(!q||(x.teachers+x.duty+x.result).toLowerCase().includes(q)));
+  if(S.manage) r=r.filter(x=>x.canEdit);
+  $("#tb").innerHTML = r.length ? `<table><tr><th>ลำดับ</th>${S.manage?"<th>จัดการ</th>":""}<th>วันที่ / เวลา</th><th>หน้าที่</th><th>ครูผู้ปฏิบัติ</th><th>ผลการปฏิบัติ</th><th>รูปที่ 1</th><th>รูปที่ 2</th></tr>
+  ${r.map((x,i)=>`<tr><td>${i+1}</td>${S.manage?`<td style="white-space:nowrap"><button class="btn" onclick="editRow('${x.id}')">แก้ไข</button> <button class="btn d" onclick="delRow('${x.id}')">ลบ</button></td>`:""}
+  <td style="white-space:nowrap">${dstr(x.date)}<br>${esc(x.time)} น.</td><td>${esc(x.duty)}</td><td>${esc(x.teachers)}</td><td>${esc(x.result)}</td>
+  ${[x.img1,x.img2].map(u=>`<td>${thumb(u)?`<a href="${esc(u)}" target="_blank" rel="noopener"><img loading="lazy" src="${thumb(u)}"></a>`:"-"}</td>`).join("")}</tr>`).join("")}</table>`
+  : `<div class="empty">ไม่พบข้อมูล</div>`;
+}
+function editRow(id){ go("edit",S.rows.find(x=>x.id===id)); renderForm(); }
+async function delRow(id){
+  if(!confirm("ต้องการลบรายการนี้ใช่หรือไม่? (รูปภาพจะถูกลบด้วย)")) return;
+  try{ await api({action:"delete",token:S.token,id}); toast("ลบข้อมูลแล้ว"); loadList(true); }catch(e){ toast(e.message,true); }
+}
+
+/* ---------- START ---------- */
+(function(){
+  try{
+    const s=JSON.parse(localStorage.getItem("duty_session")||"null");
+    if(s&&s.exp>Date.now()){ S.token=s.token; S.user=s.user; return boot(); }
+  }catch(e){}
+  showLogin();
+})();
+</script>
+</body>
+</html>
