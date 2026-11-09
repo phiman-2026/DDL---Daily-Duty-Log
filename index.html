@@ -342,23 +342,42 @@ table.tbl{width:100%;border-collapse:collapse;font-size:.9rem}
 .hist .d b{display:block;font-size:1.15rem;font-variant-numeric:tabular-nums}
 .hist .d span{font-size:.7rem;color:var(--muted)}
 
-.print-only{display:none}
+.print-only,#print-area{display:none}
 @media print{
-  @page{size:A4;margin:12mm}
-  body{background:#fff;font-size:12.5px}
-  .topbar,.nav,.no-print,.toasts,.menu{display:none!important}
+  @page{size:A4;margin:11mm 10mm}
+  body{background:#fff!important;font-size:13.5px;line-height:1.35;color:#000}
+  .topbar,.nav,.no-print,.toasts,.menu,.scrim,.loading{display:none!important}
   main{padding:0;max-width:none}
   .screen-only{display:none!important}
   .print-only{display:block!important}
-  .ptable{width:100%;border-collapse:collapse}
-  .ptable th,.ptable td{border:1px solid #555;padding:4px 6px;vertical-align:middle}
-  .ptable th{background:#eee}
-  .ptable img{height:32px;max-width:120px;object-fit:contain}
-  .phead{text-align:center;margin-bottom:10px}
-  .phead h2{margin:0;font-family:var(--serif);font-size:17px}
-  .psign{display:flex;justify-content:flex-end;margin-top:36px}
-  .psign div{text-align:center;width:300px}
+  body.print-x #app{display:none!important}
+  body.print-x #print-area{display:block!important}
+  .ptable{width:100%;border-collapse:collapse;table-layout:fixed}
+  .ptable th,.ptable td{border:1px solid #444;padding:5px 6px;vertical-align:top;text-align:left;word-wrap:break-word}
+  .ptable th{background:#f0e6d2!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;vertical-align:middle;text-align:center}
+  .ptable td.c{text-align:center}
+  .ptable tr{break-inside:avoid;page-break-inside:avoid}
+  .ptable thead{display:table-header-group}
+  .ptable img.psig{height:38px;max-width:100%;object-fit:contain;display:block;margin:0 auto}
+  .pphs{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+  .ptable img.pph{width:100%;height:78px;object-fit:cover;border-radius:3px;border:1px solid #bbb}
+  .pitem+.pitem{margin-top:5px}
+  .pmuted{color:#666;font-size:.9em}
+  .ptag-p{display:inline-block;margin-top:3px;font-size:.85em;border:1px solid #999;border-radius:3px;padding:0 4px}
+  .phead{text-align:center;margin-bottom:8px}
+  .phead .plogo{width:62px;height:62px;object-fit:contain;display:block;margin:0 auto 4px}
+  .phead h2{margin:0;font-family:var(--serif);font-size:19px}
+  .psum{margin:6px 0 8px;font-size:.95em}
+  .psign{display:flex;justify-content:flex-end;margin-top:30px;break-inside:avoid}
+  .psign.two{justify-content:space-around}
+  .psign div{text-align:center;width:300px;line-height:1.9}
+  .pfoot{margin-top:18px;font-size:.8em;color:#777;text-align:right}
 }
+/* ---------- v3: cropper ---------- */
+.cropper{position:relative;width:min(320px,78vw);aspect-ratio:1;margin:0 auto;overflow:hidden;border-radius:22px;background:#1b140c;touch-action:none;cursor:grab;box-shadow:var(--sh-md);user-select:none}
+.cropper.grab{cursor:grabbing}
+.cropper canvas{position:absolute;left:0;top:0;transform-origin:0 0;max-width:none;will-change:transform}
+.crop-mask{position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 999px rgba(20,12,4,.55);outline:2px solid rgba(255,240,200,.9);pointer-events:none}
 /* ---------- v2: avatar / photos / logo ---------- */
 .avatar.has-img{overflow:hidden;background:#fff}
 .avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
@@ -405,6 +424,7 @@ img.broken{opacity:.25}
 <body>
 <div id="app"></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
+<div id="print-area"></div>
 
 <!-- Emblem: ตราสัญลักษณ์ระบบ (ออกแบบใหม่ ไม่ใช่ตราโรงเรียน) -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -435,7 +455,7 @@ img.broken{opacity:.25}
    ⚙️ ตั้งค่า: วาง URL ของ Google Apps Script Web App (ลงท้าย /exec)
    หากเว้นว่างไว้ ระบบจะเปิด "โหมดทดลอง" ด้วยข้อมูลตัวอย่าง
    ============================================================ */
-const API_URL = 'https://script.google.com/macros/s/AKfycbyejqPvKjfPbdUYvLqswRqtIm1xkWnUF_-irftu3zEbCxq3WjNehFtBS0cFJd2xZei0/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwkYJbRx_Q8CFVjgMNQhD3otqbGg8RxKhPpQeNCgtjSMgd_E0w7KJSiC06F7wNyK4hH/exec';
 
 const DEMO = !API_URL || /[?&]demo\b/.test(location.search);
 const DAY_TH = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
@@ -472,6 +492,8 @@ const I = {
   camera:'<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.5"/>',
   image:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-8 9"/>',
   history:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',
+  minus:'<path d="M5 12h14"/>',
+  rotate:'<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
   sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'
 };
 const ic = (n,extra='') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" ${extra}>${I[n]}</svg>`;
@@ -634,10 +656,11 @@ function toggleMenu(){
   const u=S.user; m=document.createElement('div'); m.className='menu'; m.id='menu'; m.setAttribute('role','menu');
   m.innerHTML=`<div class="who row" style="gap:10px;flex-wrap:nowrap">${avatarEl(u)}<div><div style="font-weight:600">${esc(u.name)}</div><div class="hint">${ROLE_LABEL[u.role]||''}${u.role==='dayadmin'?' · วัน'+DAY_TH[u.admin_day]:''}</div></div></div>
     <button data-m="av">${ic('camera')}รูปโปรไฟล์</button>
+    <button data-m="pr">${ic('print')}พิมพ์รายงานของฉัน</button>
     <button data-m="pw">${ic('key')}${u.has_pw?'เปลี่ยนรหัสผ่าน':'ตั้งรหัสผ่าน'}</button>
     <button data-m="out">${ic('out')}ออกจากระบบ</button>`;
   $('.topbar').appendChild(m);
-  m.onclick=e=>{const b=e.target.closest('[data-m]'); if(!b)return; m.remove(); b.dataset.m==='out'?confirmBox('ต้องการออกจากระบบหรือไม่','ออกจากระบบ',false).then(ok=>ok&&logout()):b.dataset.m==='av'?avatarDialog():pwDialog();};
+  m.onclick=e=>{const b=e.target.closest('[data-m]'); if(!b)return; m.remove(); b.dataset.m==='out'?confirmBox('ต้องการออกจากระบบหรือไม่','ออกจากระบบ',false).then(ok=>ok&&logout()):b.dataset.m==='av'?avatarDialog():b.dataset.m==='pr'?printMyDialog():pwDialog();};
   setTimeout(()=>document.addEventListener('click',function h(ev){if(!m.contains(ev.target)){m.remove();document.removeEventListener('click',h)}}),0);
 }
 function pwDialog(){
@@ -708,12 +731,15 @@ function renderMe(){
           <h4><span>วัน${w.label}</span>${w.day===h.weekday?'<span class="tag">วันนี้</span>':''}</h4>
           ${w.points.length?`<ul>${w.points.map(p=>`<li><b>${p.start}–${p.end} น.</b>${esc(p.name)}</li>`).join('')}</ul>`:'<div class="none">— ไม่มีเวร —</div>'}</div>`).join('')}</div>
       </div>
-      <div class="card"><div class="card-h"><h2>ประวัติการรายงาน</h2><span class="sub">${h.history.length} รายการล่าสุด</span></div>
-        ${h.history.length?`<div class="hist">${h.history.slice(0,12).map(r=>{const d=r.date.split('-')[2];return `<div class="it">
-          <div class="d"><b>${+d}</b><span>${thDate(r.date,{month:'short'})}</span></div>
-          <div style="flex:1;min-width:0"><div style="font-weight:500;line-height:1.35">${esc(r.point_name)}</div>
-          <div class="row" style="gap:6px;margin-top:3px"><span class="badge ${r.result===RESULT_OK?'b-ok':'b-no'}">${esc(r.result)}</span>${r.backdate?'<span class="badge b-back">บันทึกย้อนหลัง</span>':r.late?'<span class="badge b-late">ส่งล่าช้า</span>':''}
-          ${r.photos&&r.photos.length?`<span class="hint">${ic('image','width="14" height="14" style="vertical-align:-2px"')} ${r.photos.length}</span>`:''}</div></div></div>`}).join('')}</div>`
+      <div class="card"><div class="card-h"><div><h2>ประวัติการรายงาน</h2><span class="sub">${histGroups(h.history).length} วันล่าสุด</span></div>
+        <button class="btn btn-gold btn-sm" data-printmy>${ic('print')}พิมพ์รายงานของฉัน</button></div>
+        ${h.history.length?`<div class="hist">${histGroups(h.history).slice(0,10).map(g=>{const d=g.date.split('-')[2];return `<div class="it" style="align-items:flex-start">
+          <div class="d"><b>${+d}</b><span>${thDate(g.date,{month:'short'})}</span></div>
+          <div style="flex:1;min-width:0">${g.items.map((r,k)=>`<div ${k?'style="margin-top:8px"':''}><div style="font-weight:500;line-height:1.35">${esc(r.point_name)}</div>
+            <div class="row" style="gap:6px;margin-top:3px"><span class="badge ${r.result===RESULT_OK?'b-ok':'b-no'}">${esc(r.result)}</span>${r.backdate?'<span class="badge b-back">บันทึกย้อนหลัง</span>':r.late?'<span class="badge b-late">ส่งล่าช้า</span>':''}</div>
+            ${r.reason||r.note?`<div class="hint" style="margin-top:3px;white-space:pre-wrap">${esc([r.reason,r.note].filter(Boolean).join(' · '))}</div>`:''}</div>`).join('')}
+            ${g.photos.length?`<div class="mini-ph">${g.photos.map((id,k)=>`<button class="pthumb" data-zoom="${esc(id)}" aria-label="ภาพประกอบ ${k+1}">${dimg(id,240,'','ภาพประกอบ '+(k+1))}</button>`).join('')}</div>`:''}
+          </div></div>`}).join('')}</div>`
           :`<div class="empty" style="padding:18px">ยังไม่มีประวัติการรายงาน</div>`}
       </div>
     </div>
@@ -725,7 +751,9 @@ function renderMe(){
   $('#btn-edit')&&($('#btn-edit').onclick=()=>{S.editing=true;renderMe()});
   $('[data-goback]')&&($('[data-goback]').onclick=e=>{S.back.date=e.currentTarget.dataset.goback;go('back')});
   $('[data-avatar]').onclick=avatarDialog;
+  $('[data-printmy]').onclick=printMyDialog;
 }
+function histGroups(list){ const g=[]; list.forEach(r=>{ let x=g.find(y=>y.date===r.date); if(!x){ x={date:r.date,items:[],photos:[]}; g.push(x); } x.items.push(r); (r.photos||[]).forEach(p=>{ if(!x.photos.includes(p)) x.photos.push(p); }); }); return g; }
 function photosOf(h){ const d=h.duties.find(x=>x.report&&x.report.photos&&x.report.photos.length); return d?d.report.photos:[]; }
 function reportedCard(h,canEdit){
   const r0=h.duties.find(d=>d.report)?.report||{};
@@ -862,7 +890,7 @@ function renderBack(){
       <input type="date" class="input num" id="bd" value="${D.date}" max="${maxD}" style="width:auto;flex:none">
       <button class="btn btn-silver btn-icon" data-bn="1" aria-label="วันถัดไป" ${D.date>=maxD?'disabled':''}>${ic('right')}</button>
       <span class="hint">วัน${D.weekday_label}ที่ ${thDate(D.date,{day:'numeric',month:'long',year:'numeric'})}</span>
-      <span class="spacer"></span>${n?pill(D.status):''}
+      <span class="spacer"></span>${n?pill(D.status):''}<button class="btn btn-gold btn-sm" data-printmy>${ic('print')}พิมพ์รายงานของฉัน</button>
     </div>
     ${D.missing.length?`<div style="margin-top:16px"><div class="hint" style="margin-bottom:8px">วันเวรที่ยังรายงานไม่ครบ (${D.missing.length} วัน)</div>
       <div class="fchips">${D.missing.map(m=>`<button data-bd="${m.date}" class="${m.date===D.date?'on':''}">วัน${m.weekday_label} ${thShort(m.date)} <span class="c">${m.done}/${m.total}</span></button>`).join('')}</div></div>`
@@ -875,12 +903,13 @@ function renderBack(){
   $$('[data-bd]').forEach(b=>b.onclick=()=>pick(b.dataset.bd));
   if($('#df')) bindDutyForm(D, r=>{ S.back.data=r; S.home=null; S.editing=false; renderBack(); window.scrollTo({top:0,behavior:'smooth'}); }, ()=>{S.editing=false;renderBack()});
   $('#btn-edit')&&($('#btn-edit').onclick=()=>{S.editing=true;renderBack()});
+  $('[data-printmy]').onclick=printMyDialog;
 }
 
 /* ================= IMAGES & AVATAR ================= */
 const IMGC={};
 const imgUrl=(id,w)=> id.startsWith('data:') ? id : (IMGC[id] || `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w${w}`);
-const dimg=(id,w,cls='',alt='')=>`<img class="${cls}" src="${esc(imgUrl(id,w))}" data-fid="${esc(id)}" alt="${esc(alt)}" loading="lazy" referrerpolicy="no-referrer" onerror="imgFallback(this)">`;
+const dimg=(id,w,cls='',alt='',lazy=true)=>`<img class="${cls}" src="${esc(imgUrl(id,w))}" data-fid="${esc(id)}" alt="${esc(alt)}" loading="${lazy?'lazy':'eager'}" referrerpolicy="no-referrer" onerror="imgFallback(this)">`;
 function imgFallback(el){
   const id=el.dataset.fid; if(!id||el.dataset.fb||id.startsWith('data:')) return; el.dataset.fb='1';
   if(IMGC[id]){ el.src=IMGC[id]; return; }
@@ -900,13 +929,122 @@ function avatarDialog(){
       <label class="btn btn-primary">${ic('camera')}ถ่ายภาพ<input type="file" accept="image/*" capture="user" data-av hidden></label>
       <label class="btn btn-silver">${ic('image')}เลือกรูป<input type="file" accept="image/*" data-av hidden></label>
       ${u.avatar?`<button class="btn btn-ghost" id="av-del">${ic('trash')}ลบรูป</button>`:''}</div>
-    <div class="hint" style="margin-top:10px">ระบบจะครอปเป็นสี่เหลี่ยมจัตุรัสและย่อขนาดให้อัตโนมัติ</div></div>
+    <div class="hint" style="margin-top:10px">เลือกรูปแล้วเลื่อน/ซูมเพื่อครอปภาพได้</div></div>
     <div class="actions"><button class="btn btn-ghost" data-close>ปิด</button></div>`);
   const sc=$$('.scrim').pop();
   const done=r=>{ S.user={...S.user,...r.user}; store.set('duty_user',JSON.stringify(S.user)); if(S.home) S.home.user=S.user; S.users=null; sc._close(); toast(r.message,'ok'); renderShell(); go(S.view); };
   $$('[data-av]',sc).forEach(inp=>inp.onchange=async()=>{ const f=inp.files&&inp.files[0]; if(!f) return;
-    let image; try{ image=await shrinkSquare(f,360); }catch(e){ return toast(e.message,'err'); } try{ done(await api('setAvatar',{image})); }catch(e){} });
+    inp.value=''; const image=await cropDialog(f); if(!image) return; try{ done(await api('setAvatar',{image})); }catch(e){} });
   $('#av-del',sc)&&($('#av-del',sc).onclick=async()=>{ try{ done(await api('setAvatar',{image:''})); }catch(e){} });
+}
+
+
+/* ================= PRINT HELPERS ================= */
+/** รอให้รูปทั้งหมดในส่วนพิมพ์โหลดเสร็จ (รวมรูปที่ต้องดึงผ่าน API) แล้วค่อยสั่งพิมพ์ */
+async function doPrint(rootSel){
+  const imgs=$$(rootSel+' img');
+  imgs.forEach(i=>{ if(i.loading==='lazy') i.loading='eager'; if(i.complete && !i.naturalWidth) imgFallback(i); });
+  loading(true);
+  const t0=Date.now();
+  const pending=()=>imgs.filter(i=>!(i.complete&&i.naturalWidth) && !i.classList.contains('broken'));
+  while(Date.now()-t0<12000 && pending().length){ await new Promise(r=>setTimeout(r,250)); pending().forEach(i=>{ if(i.complete&&!i.naturalWidth) imgFallback(i); }); }
+  loading(false);
+  if(pending().length) toast('รูปบางภาพยังโหลดไม่เสร็จ — ระบบจะพิมพ์เท่าที่โหลดได้');
+  setTimeout(()=>window.print(),120);
+}
+window.addEventListener('afterprint',()=>{ if(document.body.classList.contains('print-x')){ document.body.classList.remove('print-x'); $('#print-area').innerHTML=''; } });
+const printLogo = () => `<img class="plogo" src="${LOGO_URL}" alt="" onerror="this.remove()">`;
+const photoCell = ids => (ids||[]).length ? `<div class="pphs">${ids.map(id=>dimg(id,500,'pph','ภาพประกอบ',false)).join('')}</div>` : '<span class="pmuted">–</span>';
+
+/* ---------- Personal report (รายบุคคล) ---------- */
+function printMyDialog(){
+  const t=bkkDate(), m0=t.slice(0,8)+'01', pm=addDays(m0,-1), pm0=pm.slice(0,8)+'01';
+  formModal('พิมพ์รายงานผลการปฏิบัติเวรของฉัน',`<div class="grid">
+    <div class="fchips">
+      <button type="button" data-rg="${m0}|${t}" class="on">เดือนนี้</button>
+      <button type="button" data-rg="${pm0}|${pm}">เดือนที่แล้ว</button>
+      <button type="button" data-rg="${addDays(t,-6)}|${t}">7 วันล่าสุด</button>
+      <button type="button" data-rg="${t}|${t}">วันนี้</button></div>
+    <div class="grid g2"><div><label class="f">ตั้งแต่วันที่</label><input class="input num" type="date" name="from" value="${m0}" max="${t}" required></div>
+      <div><label class="f">ถึงวันที่</label><input class="input num" type="date" name="to" value="${t}" max="${t}" required></div></div>
+    <div class="hint">พิมพ์ได้ครั้งละไม่เกิน 6 เดือน · ภาพประกอบและลายมือชื่อจะแสดงในรายงาน · เลือก “บันทึกเป็น PDF” ในหน้าต่างพิมพ์เพื่อเก็บเป็นไฟล์</div></div>`,
+    `${ic('print')}พิมพ์รายงาน`, async f=>{
+      if(f.from.value>f.to.value){ toast('วันที่เริ่มต้องไม่เกินวันที่สิ้นสุด','err'); return false; }
+      try{ const r=await api('myReport',{from:f.from.value,to:f.to.value}); renderPersonalPrint(r); }catch(e){ return false; }
+    });
+  const sc=$$('.scrim').pop();
+  $$('[data-rg]',sc).forEach(b=>b.onclick=()=>{ const [a,z]=b.dataset.rg.split('|'); sc.querySelector('[name=from]').value=a; sc.querySelector('[name=to]').value=z; $$('[data-rg]',sc).forEach(x=>x.classList.toggle('on',x===b)); });
+}
+function renderPersonalPrint(R){
+  const st=R.settings||S.info||{}, u=R.user, D=R.days;
+  const due=D.filter(d=>d.items.length), rep=D.filter(d=>d.signature||d.items.some(i=>i.report));
+  const missed=due.filter(d=>d.status==='overdue').length, late=D.filter(d=>d.late||d.backdate).length;
+  const range = R.from===R.to ? `วันที่ ${thDate(R.from,{day:'numeric',month:'long',year:'numeric'})}` : `ระหว่างวันที่ ${thDate(R.from,{day:'numeric',month:'long',year:'numeric'})} ถึง ${thDate(R.to,{day:'numeric',month:'long',year:'numeric'})}`;
+  $('#print-area').innerHTML=`<div class="psheet">
+    <div class="phead">${printLogo()}<h2>รายงานผลการปฏิบัติเวรประจำวัน (รายบุคคล)</h2>
+      <div>${esc(st.SCHOOL_NAME||'')} ${esc(st.TERM||'')}</div>
+      <div><b>${esc(u.name)}</b> · ${range}</div></div>
+    <div class="psum">วันเวรทั้งหมด <b>${due.length}</b> วัน · รายงานแล้ว <b>${rep.length}</b> วัน · ไม่ได้รายงาน <b>${missed}</b> วัน · ส่งล่าช้า/บันทึกย้อนหลัง <b>${late}</b> วัน</div>
+    ${D.length?`<table class="ptable"><thead><tr><th style="width:4%">ที่</th><th style="width:12%">วัน / วันที่</th><th style="width:27%">จุดปฏิบัติหน้าที่ / ผลการปฏิบัติ</th><th>หมายเหตุ / บันทึกเหตุการณ์</th><th style="width:21%">ภาพประกอบ</th><th style="width:13%">ลายมือชื่อ</th></tr></thead><tbody>
+    ${D.map((d,i)=>`<tr><td class="c">${i+1}</td>
+      <td>วัน${d.weekday_label}<br>${thDate(d.date,{day:'numeric',month:'short',year:'2-digit'})}${d.backdate?'<div class="ptag-p">บันทึกย้อนหลัง</div>':d.late?'<div class="ptag-p">ส่งล่าช้า</div>':''}</td>
+      <td>${d.items.map(it=>`<div class="pitem">• ${esc(it.name)}${it.start?` <small>(${it.start}–${it.end} น.)</small>`:''}<br><b>${it.report?esc(it.report.result):d.status==='pending'?'<i>ยังไม่ได้รายงาน</i>':'<i>ไม่ได้รายงาน</i>'}</b></div>`).join('')}</td>
+      <td>${d.items.filter(it=>it.report&&(it.report.reason||it.report.note)).map(it=>`<div class="pitem">${d.items.length>1?`<u>${esc(it.name)}</u>: `:''}${esc([it.report.reason&&('เหตุผล: '+it.report.reason),it.report.note].filter(Boolean).join(' / '))}</div>`).join('')||'<span class="pmuted">–</span>'}
+        ${d.submitted_at?`<div class="pmuted">บันทึกเมื่อ ${esc(thShort(d.submitted_at.slice(0,10)))} ${esc(d.submitted_at.slice(11,16))} น.</div>`:''}</td>
+      <td>${photoCell(d.photos)}</td>
+      <td class="c">${d.signature?`<img class="psig" src="${esc(d.signature)}" alt="">`:''}</td></tr>`).join('')}
+    </tbody></table>`:`<p style="text-align:center;margin:30px 0">ไม่มีวันเวรในช่วงวันที่ที่เลือก</p>`}
+    <div class="psign two"><div>ลงชื่อ ......................................................<br>( ${esc(u.name)} )<br>ผู้รายงาน</div>
+      <div>ลงชื่อ ......................................................<br>( ...................................................... )<br>หัวหน้าครูเวร / ผู้ตรวจสอบ</div></div>
+    <div class="pfoot">พิมพ์จาก${esc(st.SYSTEM_NAME||'ระบบรายงานการปฏิบัติเวรประจำวัน')} เมื่อ ${thDate(bkkDate(),{day:'numeric',month:'short',year:'2-digit'})} ${bkkTime().slice(0,5)} น.</div>
+  </div>`;
+  document.body.classList.add('print-x');
+  doPrint('#print-area');
+}
+
+/* ---------- Avatar cropper ---------- */
+async function fileToCanvas(file,max=1600){
+  const {im,url}=await loadImg(file);
+  try{ const sc=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight)); const c=document.createElement('canvas');
+    c.width=Math.round(im.naturalWidth*sc); c.height=Math.round(im.naturalHeight*sc); c.getContext('2d').drawImage(im,0,0,c.width,c.height); return c; }
+  finally{ URL.revokeObjectURL(url); }
+}
+function cropDialog(file){
+  return new Promise(async resolve=>{
+    let img; try{ img=await fileToCanvas(file,1600); }catch(e){ toast(e.message,'err'); return resolve(null); }
+    let finished=false;
+    modal(`<h3>ปรับตำแหน่งรูปโปรไฟล์</h3>
+      <div class="cropper" id="crp"><canvas id="crp-cv"></canvas><div class="crop-mask"></div></div>
+      <div class="row" style="gap:10px;margin-top:16px;flex-wrap:nowrap;max-width:340px;margin-inline:auto">
+        <button type="button" class="btn btn-ghost btn-icon" id="crp-out" aria-label="ย่อ">${ic('minus')}</button>
+        <input type="range" id="crp-z" min="1" max="4" step="0.01" value="1" style="flex:1;accent-color:var(--orange)" aria-label="ซูม">
+        <button type="button" class="btn btn-ghost btn-icon" id="crp-in" aria-label="ขยาย">${ic('plus')}</button>
+        <button type="button" class="btn btn-silver btn-icon" id="crp-rot" title="หมุน 90°" aria-label="หมุนภาพ">${ic('rotate')}</button></div>
+      <div class="hint" style="text-align:center;margin-top:8px">ลากเพื่อเลื่อนภาพ · ใช้แถบ ล้อเมาส์ หรือสองนิ้วเพื่อซูม</div>
+      <div class="actions"><button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary" id="crp-ok">${ic('check')}ใช้รูปนี้</button></div>`).then(()=>{ if(!finished) resolve(null); });
+    const sc=$$('.scrim').pop(), box=$('#crp',sc), cv=$('#crp-cv',sc), zr=$('#crp-z',sc);
+    let V,base,s,tx,ty;
+    const clamp=()=>{ const w=img.width*s,h=img.height*s; tx=Math.min(0,Math.max(V-w,tx)); ty=Math.min(0,Math.max(V-h,ty)); };
+    const apply=()=>{ clamp(); cv.style.transform=`translate(${tx}px,${ty}px) scale(${s})`; };
+    const setup=()=>{ V=box.clientWidth; cv.width=img.width; cv.height=img.height; cv.getContext('2d').drawImage(img,0,0);
+      base=Math.max(V/img.width,V/img.height); s=base; tx=(V-img.width*s)/2; ty=(V-img.height*s)/2; zr.value=1; apply(); };
+    const zoomTo=(ns,px=V/2,py=V/2)=>{ ns=Math.max(base,Math.min(base*4,ns)); tx=px-(px-tx)*ns/s; ty=py-(py-ty)*ns/s; s=ns; zr.value=s/base; apply(); };
+    setup();
+    zr.oninput=()=>zoomTo(base*zr.value);
+    $('#crp-in',sc).onclick=()=>zoomTo(s*1.2); $('#crp-out',sc).onclick=()=>zoomTo(s/1.2);
+    $('#crp-rot',sc).onclick=()=>{ const c=document.createElement('canvas'); c.width=img.height; c.height=img.width; const x=c.getContext('2d'); x.translate(c.width,0); x.rotate(Math.PI/2); x.drawImage(img,0,0); img=c; setup(); };
+    box.addEventListener('wheel',e=>{ e.preventDefault(); const r=box.getBoundingClientRect(); zoomTo(s*Math.exp(-e.deltaY*.0015),e.clientX-r.left,e.clientY-r.top); },{passive:false});
+    const P=new Map(); let last=null;
+    const mid=()=>{ const a=[...P.values()]; const r=box.getBoundingClientRect(); return {x:(a[0].x+a[1].x)/2-r.left,y:(a[0].y+a[1].y)/2-r.top,d:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)}; };
+    box.addEventListener('pointerdown',e=>{ box.setPointerCapture(e.pointerId); P.set(e.pointerId,{x:e.clientX,y:e.clientY}); last=P.size===2?mid():null; box.classList.add('grab'); });
+    box.addEventListener('pointermove',e=>{ if(!P.has(e.pointerId)) return; const p=P.get(e.pointerId);
+      if(P.size===1){ tx+=e.clientX-p.x; ty+=e.clientY-p.y; apply(); P.set(e.pointerId,{x:e.clientX,y:e.clientY}); }
+      else if(P.size===2){ P.set(e.pointerId,{x:e.clientX,y:e.clientY}); const m=mid(); if(last){ tx+=m.x-last.x; ty+=m.y-last.y; zoomTo(s*m.d/last.d,m.x,m.y); } last=m; } });
+    const up=e=>{ P.delete(e.pointerId); last=P.size===2?mid():null; if(!P.size) box.classList.remove('grab'); };
+    box.addEventListener('pointerup',up); box.addEventListener('pointercancel',up);
+    $('#crp-ok',sc).onclick=()=>{ const o=document.createElement('canvas'); o.width=o.height=400; const x=o.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,400,400);
+      x.drawImage(img,-tx/s,-ty/s,V/s,V/s,0,0,400,400); finished=true; resolve(o.toDataURL('image/jpeg',.88)); sc._close(); };
+  });
 }
 
 /* ---------- Signature pad ---------- */
@@ -974,7 +1112,7 @@ function renderDay(){
       <button class="btn btn-ghost btn-sm" id="d-today">${isAdmin?'วันนี้':'ล่าสุด'}</button>
       <span class="spacer"></span>
       <button class="btn btn-ghost btn-sm" id="d-ref">${ic('refresh')}รีเฟรช</button>
-      <button class="btn btn-gold btn-sm" onclick="window.print()">${ic('print')}พิมพ์รายงาน</button>
+      <button class="btn btn-gold btn-sm" onclick="doPrint('#view .print-only')">${ic('print')}พิมพ์รายงาน</button>
     </div>
   </div>
   <div class="screen-only">
@@ -1025,12 +1163,15 @@ function renderDay(){
 }
 function printSheet(D){
   const st=S.info||D.settings||{};
-  return `<div class="print-only"><div class="phead"><h2>บันทึกรายงานการปฏิบัติเวรประจำวัน</h2>
+  return `<div class="print-only"><div class="phead">${printLogo()}<h2>บันทึกรายงานการปฏิบัติเวรประจำวัน</h2>
     <div>${esc(st.SCHOOL_NAME||'')} ${esc(st.TERM||'')}</div><div>วัน${D.weekday_label} ที่ ${thDate(D.date,{day:'numeric',month:'long',year:'numeric'})}</div></div>
-    <table class="ptable"><thead><tr><th style="width:4%">ที่</th><th style="width:25%">จุดปฏิบัติหน้าที่</th><th style="width:22%">ชื่อ-สกุล</th><th style="width:11%">ผลการปฏิบัติ</th><th>หมายเหตุ / เหตุการณ์</th><th style="width:15%">ลายมือชื่อ</th></tr></thead>
-    <tbody>${D.rows.map((r,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${esc(r.point_name)}${r.start?`<br><small>${r.start}–${r.end} น.</small>`:''}</td><td>${esc(r.name)}</td>
-      <td>${r.report?esc(r.report.result):'<i>ไม่ได้รายงาน</i>'}</td><td>${r.report?esc([r.report.reason,r.report.note].filter(Boolean).join(' / ')):''}${r.report&&(r.report.photos||[]).length?`<div>${r.report.photos.map(id=>dimg(id,300,'pph')).join('')}</div>`:''}</td>
-      <td style="text-align:center">${r.report&&r.report.signature?`<img src="${esc(r.report.signature)}">`:''}</td></tr>`).join('')}</tbody></table>
+    <div class="psum">ครูเวร <b>${D.summary.teachers}</b> คน · ปฏิบัติงานแล้ว <b>${D.summary.done||0}</b> · ยังไม่ได้ปฏิบัติงาน <b>${(D.summary.pending||0)+(D.summary.upcoming||0)}</b> · เลยเวลา <b>${D.summary.overdue||0}</b> · รายงานแล้ว ${D.summary.reported_points}/${D.summary.points} จุด</div>
+    <table class="ptable"><thead><tr><th style="width:4%">ที่</th><th style="width:20%">จุดปฏิบัติหน้าที่</th><th style="width:17%">ชื่อ-สกุล</th><th style="width:10%">ผลการปฏิบัติ</th><th>หมายเหตุ / เหตุการณ์</th><th style="width:20%">ภาพประกอบ</th><th style="width:12%">ลายมือชื่อ</th></tr></thead>
+    <tbody>${D.rows.map((r,i)=>`<tr><td class="c">${i+1}</td><td>${esc(r.point_name)}${r.start?`<br><small>${r.start}–${r.end} น.</small>`:''}</td><td>${esc(r.name)}</td>
+      <td>${r.report?esc(r.report.result)+(r.report.backdate?'<div class="ptag-p">บันทึกย้อนหลัง</div>':r.report.late?'<div class="ptag-p">ส่งล่าช้า</div>':''):'<i>ไม่ได้รายงาน</i>'}</td>
+      <td>${r.report?(esc([r.report.reason&&('เหตุผล: '+r.report.reason),r.report.note].filter(Boolean).join(' / '))||'<span class="pmuted">–</span>')+`<div class="pmuted">บันทึก ${esc((r.report.submitted_at||'').slice(11,16))} น.</div>`:''}</td>
+      <td>${r.report?photoCell(r.report.photos):''}</td>
+      <td class="c">${r.report&&r.report.signature?`<img class="psig" src="${esc(r.report.signature)}" alt="">`:''}</td></tr>`).join('')}</tbody></table>
     <div class="psign"><div>ลงชื่อ ......................................................<br>( ${D.heads[0]?esc(D.heads[0]):'.....................................................'} )<br>หัวหน้าครูเวรประจำวัน${D.weekday_label}</div></div></div>`;
 }
 const errorBox = () => `<div class="card"><div class="empty"><div class="ic">${ic('info')}</div>โหลดข้อมูลไม่สำเร็จ<div style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="go(S.view)">ลองใหม่</button></div></div></div>`;
@@ -1248,6 +1389,10 @@ const Demo = (()=>{
     logout(){return{}},
     home(q){return home(me(q.token))},
     myDay(q){return myDay(me(q.token),q.date)},
+    myReport(q){const u=me(q.token);const from=q.from,to=q.to>T?T:q.to;const days=[];for(let d=from;d<=to;d=addDays(d,1)){const l=forDate(d,duties.filter(x=>x.cid===u.cid));const rs=reps.filter(r=>r.cid===u.cid&&r.date===d);if(!l.length&&!rs.length)continue;
+      const items=l.map(x=>({point_id:x.point_id,name:x.point.name,start:x.point.start,end:x.point.end,report:rs.find(r=>r.point_id===x.point_id)||null}));
+      days.push({date:d,weekday_label:DAY_TH[wdOf(d)],items,status:status(d,l,rs,l.length?dl(l):''),signature:rs[0]?rs[0].signature:'',photos:(rs.find(r=>r.photos&&r.photos.length)||{photos:[]}).photos,submitted_at:rs[0]?rs[0].submitted_at:'',late:rs.some(r=>r.late),backdate:rs.some(r=>r.backdate)})}
+      return{from,to,today:T,user:pub(u),settings:pubSt(),days}},
     setAvatar(q){const u=me(q.token);u.avatar=q.image||'';return{user:pub(u),message:q.image?'อัปเดตรูปโปรไฟล์เรียบร้อย':'ลบรูปโปรไฟล์แล้ว'}},
     getImage(){throw new Error('n/a')},
     changePassword(q){const u=me(q.token);if(u.pw&&u.pw!==q.old_password)throw new Error('รหัสผ่านเดิมไม่ถูกต้อง');u.pw=q.new_password;return{}},
